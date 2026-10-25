@@ -5,3 +5,4 @@ data/raw/
 *.pyc
 .DS_Store
 .ipynb_checkpoints/
+data/qdrant/
