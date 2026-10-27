@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-hybrid-search"
+version = "1.0.0"
+description = "Hybrid-search RAG over ML research papers: BM25 + dense retrieval, reciprocal rank fusion, cross-encoder reranking, cited answers, and a reproducible retrieval benchmark."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Guntuku Hariprasad" }]
+keywords = ["rag", "hybrid-search", "bm25", "qdrant", "reranking", "llm", "information-retrieval"]
+dependencies = [
+    "numpy>=1.26",
+    "qdrant-client>=1.12",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "typer>=0.12",
+    "pypdf>=4.0",
+    "requests>=2.31",
+    "tqdm>=4.66",
+    "anthropic>=2.3",
+]
+
+[project.optional-dependencies]
+# Embedding + reranking models. Kept separate so CI and the unit tests stay light;
+# install torch's CPU wheel first if you don't have a GPU (see README).
+ml = ["sentence-transformers>=3.0"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.10", "httpx>=0.27", "types-requests"]
+
+[project.scripts]
+rag = "hybrid_rag.cli:app"
+
+[project.urls]
+Repository = "https://github.com/dot-hpg/rag-hybrid-search"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+hybrid_rag = ["api/static/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "N", "PTH"]
+ignore = [
+    "B008",   # typer/fastapi use calls in argument defaults by design
+    "E501",   # line length is enforced by `ruff format`
+    "SIM905", # stopword list reads better as a block of words
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = ["slow: needs the real embedding/reranking models (deselect with -m 'not slow')"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+
+[tool.coverage.run]
+source = ["hybrid_rag"]
+omit = ["src/hybrid_rag/cli.py"]

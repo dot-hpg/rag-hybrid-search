@@ -1,0 +1,45 @@
+name: Deploy demo to Hugging Face Spaces
+
+# Pushes the app to a Docker Space on every push to main.
+# One-time setup (see docs/deployment.md):
+#   1. Create a Space with the Docker SDK at huggingface.co/new-space.
+#   2. Repo settings -> Secrets: HF_TOKEN (a write token).
+#      Repo settings -> Variables: HF_SPACE, e.g. "your-hf-username/rag-hybrid-search".
+# Optional: add ANTHROPIC_API_KEY as a secret in the Space's settings for Claude answers.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_SPACE: ${{ vars.HF_SPACE }}
+    steps:
+      - name: Skip when not configured
+        if: env.HF_TOKEN == '' || env.HF_SPACE == ''
+        run: echo "HF_TOKEN secret or HF_SPACE variable not set; skipping deploy."
+      - uses: actions/checkout@v4
+        if: env.HF_TOKEN != '' && env.HF_SPACE != ''
+      - name: Push to Space
+        if: env.HF_TOKEN != '' && env.HF_SPACE != ''
+        run: |
+          set -euo pipefail
+          mkdir /tmp/space
+          cp -r Dockerfile pyproject.toml src data .dockerignore /tmp/space/
+          rm -rf /tmp/space/data/raw /tmp/space/data/qdrant
+          {
+            printf -- '---\ntitle: Hybrid-Search RAG\nemoji: "🔎"\ncolorFrom: indigo\ncolorTo: green\n'
+            printf -- 'sdk: docker\napp_port: 7860\npinned: false\nshort_description: BM25 + dense + RRF + cross-encoder RAG\n---\n\n'
+            cat README.md
+          } > /tmp/space/README.md
+          cd /tmp/space
+          git init -q -b main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Deploy ${GITHUB_SHA::7}"
+          git push --force "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" main
