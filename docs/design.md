@@ -22,7 +22,9 @@ normalisation is fragile: one outlier stretches the range and flattens everythin
 RRF (`score = Σ 1 / (k + rank)`) uses ranks only, so it needs no calibration and has one
 parameter. `k = 60` is the value from Cormack et al. (2009); it keeps a document ranked
 #1 by one retriever from overwhelming a document ranked #3 by both. `min_max_fusion` is
-implemented too, for comparison.
+implemented too, for comparison. On this corpus the two score about the same, and RRF is
+insensitive to `k` between 10 and 100 ([ablations](../results/ablations/README.md)), so
+the deciding factor is robustness: RRF needs no re-tuning when a retriever is swapped.
 
 ## 3. A cross-encoder reranks only the top 30
 
@@ -30,11 +32,14 @@ A bi-encoder embeds query and passage separately, so it can't model interactions
 their tokens. A cross-encoder reads `(query, passage)` together and is far more precise,
 but it costs one transformer forward pass per pair, so it can't search 2,000 chunks per
 query. The pipeline therefore does cheap recall first (50 candidates from each retriever,
-fused) and expensive precision last (rerank the fused top 30). Depth 30 is where the
-latency stays interactive on a laptop CPU; raise `RAG_RERANK_DEPTH` on a GPU.
+fused) and expensive precision last (rerank the fused top 30). Cost is linear in depth,
+about 80 ms per candidate on a 4-vCPU CPU. In the ablations, Hit@5 rises from 0.78 at
+depth 10 to 0.82 at depth 30 and doesn't improve at 50, so 30 is the default.
 
-`cross-encoder/ms-marco-MiniLM-L-6-v2` was trained on web search queries, not papers, so it
-is a deliberately generic choice. Swapping in `BAAI/bge-reranker-base` is one env var.
+`cross-encoder/ms-marco-MiniLM-L-6-v2` (22M parameters) was trained on web search
+queries, not papers. `BAAI/bge-reranker-base` (278M) is clearly better (MRR 0.66 vs 0.60,
+Hit@5 0.85 vs 0.82) but 6× slower, ~15 s per query on CPU. The small one is the default
+because the demo runs on a free CPU host; on a GPU, switch with `RAG_RERANKER_MODEL`.
 
 ## 4. Contextual chunk headers
 
@@ -94,6 +99,8 @@ audit one with a text search, and a unit test fails if any phrase stops matching
 
 ## What I'd do next
 
+* **Make the big reranker affordable:** int8 quantisation or ONNX Runtime for
+  `bge-reranker-base`, which would bring its +0.06 MRR within a CPU latency budget.
 * **Query-side:** HyDE or multi-query expansion for the semantic questions that still miss.
 * **Fine-tune the reranker** on synthetic (question, passage) pairs generated from the corpus.
 * **Answer-level evaluation:** faithfulness and citation precision with an LLM judge, next
