@@ -34,6 +34,15 @@ the right passage isn't in the top 5, no prompt fixes the answer.
   * `semantic` (33): the question paraphrases the passage and avoids its key terms
     ("swapped for some other arbitrary word" vs "replaced with a random token").
 
+**Label completion by pooling.** The first labels came from reading each paper once, so they
+missed other passages that also answer a question (e.g. C4's size appears both in prose,
+"about 750 GB", and in a table, "C4 745GB"). After the first benchmark run, for each of
+the 17 questions where the default mode (hybrid + rerank) had no relevant chunk in its top 5, the top-3 results
+of *all five* retrieval modes were pooled and each same-paper chunk in the pool was judged
+by hand, as in TREC-style pooled evaluation. Sixteen chunks across eleven of those questions were
+judged relevant and their evidence phrases added; the rest were left unlabelled. Because
+the pool draws from every mode equally, the completion doesn't favour any one of them.
+
 `tests/test_eval.py` checks that every evidence phrase still matches a chunk in its paper,
 that every paper is covered, and that ids are unique.
 
@@ -83,4 +92,7 @@ fixed = [q for q in r["dense"] if r["dense"][q] is None and r["hybrid_rerank"][q
 * 60 questions is enough to see large effects, not small ones (see the CIs).
 * Evidence matching can miss a chunk that answers the question in different words, which
   biases scores down slightly, equally for every mode.
+* Label completion was run on the questions the default mode missed, so it can only have
+  raised scores on those questions; the pooled chunks came from all modes, and the change
+  in each mode's score is visible in the git history of `results/results.json`.
 * Latency comes from a shared CI runner and varies between runs by roughly ±20%.

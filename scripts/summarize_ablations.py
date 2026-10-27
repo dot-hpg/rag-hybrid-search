@@ -35,6 +35,7 @@ def main() -> None:
         out += ["## Model choices", ""]
         for mode in ("dense", "hybrid", "hybrid_rerank"):
             out += [f"### `{mode}`", "", *HEADER]
+            seen = set()
             for path in models:
                 payload = json.loads(path.read_text())
                 cfg = payload["config"]
@@ -43,6 +44,9 @@ def main() -> None:
                         name = f"{cfg['embedding_model']}"
                         if mode.endswith("rerank"):
                             name += f" + {cfg['reranker_model']}"
+                        if name in seen:  # same embedder run twice with different rerankers
+                            continue
+                        seen.add(name)
                         r = {**r, "mrr_ci95": r.get("mrr_ci95", (0, 0))}
                         out.append(row(name, r))
             out.append("")
