@@ -145,6 +145,7 @@ def evaluate(
         "embedding_model": s.embedding_model,
         "reranker_model": s.reranker_model,
         "candidate_k": s.candidate_k,
+        "fusion": s.fusion,
         "rrf_k": s.rrf_k,
         "rerank_depth": s.rerank_depth,
     }

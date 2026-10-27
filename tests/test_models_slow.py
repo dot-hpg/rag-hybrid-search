@@ -7,9 +7,9 @@ import pytest
 
 pytest.importorskip("sentence_transformers")
 
-from hybrid_rag.config import Settings  # noqa: E402
-from hybrid_rag.retrieval.dense import SentenceTransformerEmbedder  # noqa: E402
-from hybrid_rag.retrieval.rerank import CrossEncoderReranker  # noqa: E402
+from hybrid_rag.config import Settings
+from hybrid_rag.retrieval.dense import SentenceTransformerEmbedder
+from hybrid_rag.retrieval.rerank import CrossEncoderReranker
 
 pytestmark = pytest.mark.slow
 

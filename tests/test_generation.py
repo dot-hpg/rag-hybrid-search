@@ -97,3 +97,14 @@ def test_claude_generator_streams_text(chunks):
     out = "".join(ClaudeGenerator(client=client).stream("q", [ScoredChunk(chunks[0], 1.0)]))
     assert out == "LoRA freezes weights [1]."
     assert calls[0]["fallbacks"] == "default"
+
+
+def test_extractive_strips_the_papers_own_citations(chunks):
+    from dataclasses import replace
+
+    noisy = replace(
+        chunks[0], text="LoRA builds on low-rank ideas [15] and adapters [3, 7] to cut parameters."
+    )
+    answer = ExtractiveGenerator().generate("low-rank parameters", [ScoredChunk(noisy, 1.0)])
+    assert "[15]" not in answer.text and "[3, 7]" not in answer.text
+    assert answer.citations == [1]

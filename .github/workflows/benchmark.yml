@@ -45,5 +45,5 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Update benchmark results"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
+            for i in 1 2 3; do git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && break; sleep 5; done
           fi

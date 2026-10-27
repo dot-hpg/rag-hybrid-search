@@ -45,3 +45,10 @@ def test_ask_returns_cited_answer(pipeline):
     assert "15%" in answer.text
     assert answer.citations and all(1 <= c <= len(result.hits) for c in answer.citations)
     assert "generate" in result.timings_ms
+
+
+def test_minmax_fusion_option(chunks, dense):
+    p = RAGPipeline(chunks, BM25Retriever(chunks), dense, fusion="minmax", candidate_k=10)
+    assert p.search("tiling SRAM", Mode.HYBRID, k=1).hits[0].chunk.doc_id == "2205.14135"
+    with pytest.raises(ValueError):
+        RAGPipeline(chunks, BM25Retriever(chunks), fusion="nope")

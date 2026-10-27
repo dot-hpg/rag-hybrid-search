@@ -32,6 +32,7 @@ class Settings(BaseSettings):
 
     # Retrieval
     candidate_k: int = 50  # depth of each first-stage retriever
+    fusion: str = "rrf"  # "rrf" or "minmax" (score blending, kept for comparison)
     rrf_k: int = 60  # RRF damping constant (Cormack et al., 2009)
     rerank_depth: int = 30  # fused candidates sent to the cross-encoder
     top_k: int = 5

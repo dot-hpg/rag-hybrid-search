@@ -168,7 +168,7 @@ function highlight(text, query) {
 function renderTimings(timings) {
   const total = Object.values(timings).reduce((a, b) => a + b, 0) || 1;
   const bars = Object.entries(timings).map(([k, v]) => `<span title="${k}: ${v} ms" style="width:${(100 * v) / total}%;background:${STAGE_COLORS[k] || "var(--muted)"}"></span>`).join("");
-  const legend = Object.entries(timings).map(([k, v]) => `<span><i style="background:${STAGE_COLORS[k] || "var(--muted)"}"></i>${k} ${v.toFixed(0)} ms</span>`).join("");
+  const legend = Object.entries(timings).map(([k, v]) => `<span><i style="background:${STAGE_COLORS[k] || "var(--muted)"}"></i>${k} ${v < 10 ? v.toFixed(1) : v.toFixed(0)} ms</span>`).join("");
   return `<div class="timings">${bars}</div><div class="legend">${legend}</div>`;
 }
 
@@ -187,7 +187,8 @@ function renderHits(result, query) {
 }
 
 function renderAnswer(text) {
-  $("answer").innerHTML = esc(text).replace(/\[(\d+)\]/g, '<a class="cite" data-n="$1">[$1]</a>');
+  const n = document.querySelectorAll("#hits .hit").length;
+  $("answer").innerHTML = esc(text).replace(/\[(\d+)\]/g, (m, d) => (+d >= 1 && +d <= n ? `<a class="cite" data-n="${d}">[${d}]</a>` : m));
   $("answer").querySelectorAll(".cite").forEach((a) => a.onclick = () => {
     const el = $(`src-${a.dataset.n}`); if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });

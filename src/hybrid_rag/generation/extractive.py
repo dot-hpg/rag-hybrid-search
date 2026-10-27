@@ -14,6 +14,8 @@ from hybrid_rag.retrieval.tokenize import tokenize
 from hybrid_rag.types import ScoredChunk
 
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z(])")
+# The papers' own numeric citations ("[15]", "[3, 7]") would be confused with ours.
+_PAPER_CITATION = re.compile(r"\s*\[\d+(?:\s*[,\u2013-]\s*\d+)*\]")
 
 
 class ExtractiveGenerator:
@@ -29,7 +31,8 @@ class ExtractiveGenerator:
         q_terms = set(tokenize(question))
         candidates: list[tuple[float, int, int, str]] = []
         for src, hit in enumerate(hits, start=1):
-            for pos, sentence in enumerate(_SENTENCE_SPLIT.split(hit.chunk.text)):
+            text = _PAPER_CITATION.sub("", hit.chunk.text)
+            for pos, sentence in enumerate(_SENTENCE_SPLIT.split(text)):
                 if len(sentence.split()) < self.min_words:
                     continue
                 terms = set(tokenize(sentence))

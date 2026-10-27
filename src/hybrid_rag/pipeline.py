@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from hybrid_rag.config import Settings
 from hybrid_rag.corpus import load_chunks
 from hybrid_rag.retrieval.bm25 import BM25Retriever
-from hybrid_rag.retrieval.fusion import reciprocal_rank_fusion
+from hybrid_rag.retrieval.fusion import min_max_fusion, reciprocal_rank_fusion
 from hybrid_rag.retrieval.rerank import Reranker, rerank
 from hybrid_rag.types import Chunk, ScoredChunk
 
@@ -73,7 +73,10 @@ class RAGPipeline:
         candidate_k: int = 50,
         rrf_k: int = 60,
         rerank_depth: int = 30,
+        fusion: str = "rrf",
     ) -> None:
+        if fusion not in ("rrf", "minmax"):
+            raise ValueError("fusion must be 'rrf' or 'minmax'")
         self.chunks = chunks
         self.bm25 = bm25
         self.dense = dense
@@ -81,6 +84,7 @@ class RAGPipeline:
         self.generator = generator
         self.candidate_k = candidate_k
         self.rrf_k = rrf_k
+        self.fusion = fusion
         self.rerank_depth = rerank_depth
 
     @classmethod
@@ -136,6 +140,7 @@ class RAGPipeline:
             generator,
             candidate_k=settings.candidate_k,
             rrf_k=settings.rrf_k,
+            fusion=settings.fusion,
             rerank_depth=settings.rerank_depth,
         )
 
@@ -173,7 +178,10 @@ class RAGPipeline:
             with _Timer(timings, "bm25"):
                 bm25_hits = self.bm25.search(query, depth)
             with _Timer(timings, "fusion"):
-                candidates = reciprocal_rank_fusion([bm25_hits, dense_hits], k=self.rrf_k)
+                if self.fusion == "rrf":
+                    candidates = reciprocal_rank_fusion([bm25_hits, dense_hits], k=self.rrf_k)
+                else:
+                    candidates = min_max_fusion([bm25_hits, dense_hits])
                 for rank, hit in enumerate(candidates, start=1):
                     hit.ranks["fused"] = rank
 

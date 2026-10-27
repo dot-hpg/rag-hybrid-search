@@ -94,3 +94,12 @@ def test_runner_rejects_unlabelled_questions(pipeline):
     bad = [EvalQuestion("x", "q", "2106.09685", ("not in any chunk",), "lexical")]
     with pytest.raises(ValueError, match="no relevant chunk"):
         evaluate(pipeline, bad, [Mode.BM25])
+
+
+def test_bootstrap_ci_brackets_the_mean():
+    from hybrid_rag.eval.runner import bootstrap_ci
+
+    values = [0.0, 1.0] * 30
+    lo, hi = bootstrap_ci(values)
+    assert lo < 0.5 < hi and lo > 0.3 and hi < 0.7
+    assert bootstrap_ci([1.0, 1.0]) == (1.0, 1.0)

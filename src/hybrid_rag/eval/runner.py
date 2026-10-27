@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import platform
+import random
 import statistics
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -33,7 +34,9 @@ class ModeReport:
     metrics: dict[str, float]
     by_kind: dict[str, dict[str, float]]
     latency_ms: dict[str, float]
+    mrr_ci95: tuple[float, float] = (0.0, 0.0)
     per_question: dict[str, int | None] = field(default_factory=dict)  # qid -> first relevant rank
+    top_ids: dict[str, list[str]] = field(default_factory=dict)  # qid -> top-10 chunk ids
 
 
 def _score_query(
@@ -50,6 +53,24 @@ def _score_query(
         "recall@10": recall_at_k(ranked_ids, relevant, k),
         "paper_hit@5": float(q.doc_id in top_docs[:5]),
     }
+
+
+def bootstrap_ci(
+    values: Sequence[float], n_resamples: int = 2000, alpha: float = 0.05, seed: int = 0
+) -> tuple[float, float]:
+    """Percentile bootstrap confidence interval for the mean.
+
+    With ~60 questions, differences of a few MRR points are within noise; the interval
+    makes that visible instead of over-reading the table.
+    """
+    if not values:
+        return (0.0, 0.0)
+    rng = random.Random(seed)
+    n = len(values)
+    means = sorted(statistics.fmean(rng.choices(values, k=n)) for _ in range(n_resamples))
+    lo = means[int(n_resamples * alpha / 2)]
+    hi = means[min(int(n_resamples * (1 - alpha / 2)), n_resamples - 1)]
+    return (round(lo, 4), round(hi, 4))
 
 
 def _mean(rows: Sequence[dict[str, float]]) -> dict[str, float]:
@@ -72,7 +93,7 @@ def evaluate(
         for q in questions[:warmup]:  # load model weights / JIT before timing
             pipeline.search(q.question, mode, EVAL_DEPTH)
         rows: list[tuple[EvalQuestion, dict[str, float]]] = []
-        latencies, per_question = [], {}
+        latencies, per_question, top_ids = [], {}, {}
         for q in tqdm(questions, desc=f"eval {mode.value}", leave=False):
             result = pipeline.search(q.question, mode, EVAL_DEPTH)
             ids = [h.chunk.chunk_id for h in result.hits]
@@ -80,6 +101,7 @@ def evaluate(
             rows.append((q, _score_query(ids, docs, q, relevant[q.id])))
             latencies.append(result.total_ms)
             per_question[q.id] = first_relevant_rank(ids, relevant[q.id])
+            top_ids[q.id] = ids
         kinds = sorted({q.kind for q in questions})
         reports.append(
             ModeReport(
@@ -90,7 +112,9 @@ def evaluate(
                     "p50": round(percentile(latencies, 50), 1),
                     "p95": round(percentile(latencies, 95), 1),
                 },
+                mrr_ci95=bootstrap_ci([r["mrr@10"] for _, r in rows]),
                 per_question=per_question,
+                top_ids=top_ids,
             )
         )
     return reports
@@ -133,15 +157,24 @@ def render_markdown(payload: dict) -> str:
         v = f"{r['metrics'][m]:.3f}"
         return f"**{v}**" if r["metrics"][m] == best[m] else v
 
-    cols = ["Hit@1", "Hit@5", "MRR@10", "nDCG@10", "Recall@10", "p50 ms", "p95 ms"]
-    keys = ["hit@1", "hit@5", "mrr@10", "ndcg@10", "recall@10"]
+    cols = ["Hit@1", "Hit@5", "MRR@10", "95% CI", "nDCG@10", "Recall@10", "p50 ms", "p95 ms"]
     lines = [
         "| Retrieval | " + " | ".join(cols) + " |",
         "|---|" + "---:|" * len(cols),
     ]
     for r in modes:
         lat = r["latency_ms"]
-        row = [cell(r, m) for m in keys] + [_ms(lat["p50"]), _ms(lat["p95"])]
+        lo, hi = r.get("mrr_ci95", (0.0, 0.0))
+        row = [
+            cell(r, "hit@1"),
+            cell(r, "hit@5"),
+            cell(r, "mrr@10"),
+            f"{lo:.2f}-{hi:.2f}",
+            cell(r, "ndcg@10"),
+            cell(r, "recall@10"),
+            _ms(lat["p50"]),
+            _ms(lat["p95"]),
+        ]
         lines.append(f"| {_LABELS.get(r['mode'], r['mode'])} | " + " | ".join(row) + " |")
 
     kinds = sorted(payload["question_kinds"])
