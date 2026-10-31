@@ -1,4 +1,17 @@
-PAPERS = {
+"""The paper collection and chunk-file I/O."""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Iterable
+from pathlib import Path
+
+from hybrid_rag.types import Chunk
+
+# arXiv id -> title. 24 papers spanning transformers, LLM scaling/alignment,
+# efficient fine-tuning and retrieval, so the corpus mixes overlapping vocabulary
+# (hard for keyword search) with precise named entities (hard for dense search).
+PAPERS: dict[str, str] = {
     "1706.03762": "Attention Is All You Need",
     "1810.04805": "BERT: Pre-training of Deep Bidirectional Transformers",
     "1907.11692": "RoBERTa: A Robustly Optimized BERT Pretraining Approach",
@@ -24,3 +37,20 @@ PAPERS = {
     "2310.11511": "Self-RAG: Learning to Retrieve, Generate, and Critique",
     "2307.03172": "Lost in the Middle: How Language Models Use Long Contexts",
 }
+
+
+def load_chunks(path: Path) -> list[Chunk]:
+    if not path.exists():
+        raise FileNotFoundError(f"{path} not found. Run `rag ingest` first (or `rag download`).")
+    with path.open(encoding="utf-8") as f:
+        return [Chunk.from_dict(json.loads(line)) for line in f if line.strip()]
+
+
+def write_chunks(chunks: Iterable[Chunk], path: Path) -> int:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    n = 0
+    with path.open("w", encoding="utf-8") as f:
+        for chunk in chunks:
+            f.write(json.dumps(chunk.to_dict(), ensure_ascii=False) + "\n")
+            n += 1
+    return n

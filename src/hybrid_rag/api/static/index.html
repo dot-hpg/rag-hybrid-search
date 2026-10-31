@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hybrid-Search RAG</title>
+<meta name="description" content="Ask questions about 24 landmark ML papers. BM25 + dense retrieval, reciprocal rank fusion, cross-encoder reranking, cited answers.">
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e4e3de;
+    --accent: #3b5bdb; --accent-soft: #e7ecfd; --good: #2b8a3e; --mark: #fff3bf;
+    --bm25: #e8590c; --dense: #1971c2; --fused: #7048e8; --rerank: #2b8a3e;
+    --radius: 10px; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141414; --panel: #1e1e1e; --ink: #ececea; --muted: #9a9a94; --line: #2e2e2c;
+      --accent: #748ffc; --accent-soft: #232a45; --mark: #4a3f10;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 32px 16px 64px; }
+  header h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .pill { font-size: 12px; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px;
+    color: var(--muted); background: var(--panel); }
+  form { margin-top: 24px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 14px; }
+  .row { display: flex; gap: 8px; }
+  input[type=text] { flex: 1; min-width: 0; font: inherit; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); padding: 8px 14px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button:disabled { opacity: .6; cursor: progress; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 12px;
+    font-size: 13px; color: var(--muted); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg label { padding: 5px 10px; cursor: pointer; border-right: 1px solid var(--line); }
+  .seg label:last-child { border-right: 0; }
+  .seg input { display: none; }
+  .seg input:checked + span { color: var(--accent); font-weight: 600; }
+  .seg label:has(input:checked) { background: var(--accent-soft); }
+  .examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .examples button { font-size: 12.5px; padding: 4px 10px; border-radius: 999px; color: var(--muted); }
+  .examples button:hover { color: var(--accent); border-color: var(--accent); }
+  section { margin-top: 22px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+  .answer { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: var(--radius); padding: 14px 16px; white-space: pre-wrap; }
+  .answer .cite { color: var(--accent); font-weight: 600; cursor: pointer; text-decoration: none; }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .timings { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); margin-top: 6px; max-width: 420px; }
+  .timings span { display: block; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  .hit { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; }
+  .hit.flash { outline: 2px solid var(--accent); }
+  .hit-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .hit-num { font-family: var(--mono); color: var(--accent); font-weight: 700; }
+  .hit-title { font-weight: 600; }
+  .hit-title a { color: inherit; text-decoration: none; } .hit-title a:hover { text-decoration: underline; }
+  .hit-page { color: var(--muted); font-size: 13px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .badge { font: 11.5px var(--mono); padding: 1px 7px; border-radius: 4px; color: #fff; }
+  .badge.bm25 { background: var(--bm25); } .badge.dense { background: var(--dense); }
+  .badge.fused { background: var(--fused); } .badge.rerank { background: var(--rerank); }
+  .hit-text { color: var(--ink); font-size: 14px; margin: 0; }
+  .hit-text mark { background: var(--mark); color: inherit; border-radius: 2px; }
+  .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .col { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+  .col h3 { margin: 0 0 8px; font: 600 13px var(--mono); }
+  .col ol { margin: 0; padding-left: 18px; font-size: 13px; }
+  .col li { margin-bottom: 6px; }
+  .col li small { color: var(--muted); }
+  .col li.shared { color: var(--good); }
+  .error { color: #c92a2a; }
+  footer { margin-top: 40px; font-size: 12.5px; color: var(--muted); }
+  footer a { color: inherit; }
+  @media (max-width: 560px) { .row { flex-direction: column; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Hybrid-Search RAG</h1>
+    <p>Ask about 24 landmark ML papers (Transformer, BERT, GPT-3, LoRA, RAG, ...). Keyword + semantic retrieval, fused and reranked, with cited answers.</p>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <form id="form">
+    <div class="row">
+      <input type="text" id="q" placeholder="e.g. How does LoRA reduce the number of trainable parameters?" autocomplete="off" required>
+      <button class="primary" id="go" type="submit">Ask</button>
+    </div>
+    <div class="controls">
+      <span>Retrieval</span>
+      <div class="seg" id="modes"></div>
+      <label><input type="checkbox" id="cmp"> compare all modes</label>
+      <label>top-k <input type="number" id="k" value="5" min="1" max="20" style="width:52px"></label>
+    </div>
+    <div class="examples" id="examples"></div>
+  </form>
+
+  <section id="answer-wrap" hidden>
+    <h2>Answer</h2>
+    <div class="answer" id="answer"></div>
+    <div class="meta" id="answer-meta"></div>
+  </section>
+
+  <section id="compare-wrap" hidden>
+    <h2>Top results by mode <small style="text-transform:none;letter-spacing:0">(green = also in hybrid + rerank)</small></h2>
+    <div class="compare" id="compare"></div>
+  </section>
+
+  <section id="hits-wrap" hidden>
+    <h2>Sources</h2>
+    <div id="timing"></div>
+    <div id="hits"></div>
+  </section>
+
+  <footer>
+    <a href="/docs">API docs</a> · <a href="https://github.com/dot-hpg/rag-hybrid-search">Source on GitHub</a>
+  </footer>
+</main>
+
+<script>
+const MODE_LABELS = { bm25: "BM25", dense: "Dense", hybrid: "Hybrid (RRF)", dense_rerank: "Dense + rerank", hybrid_rerank: "Hybrid + rerank" };
+const STAGE_COLORS = { bm25: "var(--bm25)", dense: "var(--dense)", fusion: "var(--fused)", rerank: "var(--rerank)", generate: "var(--accent)" };
+const EXAMPLES = [
+  "How does LoRA reduce the number of trainable parameters?",
+  "What BLEU score did the Transformer get on WMT 2014 English-to-German?",
+  "Why do language models struggle with information in the middle of long contexts?",
+  "How many tokens should a compute-optimal model be trained on per parameter?",
+  "What is 4-bit NormalFloat?",
+  "How does HyDE generate a hypothetical document for retrieval?",
+];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let defaultMode = "hybrid_rerank";
+
+async function init() {
+  const info = await fetch("/api/info").then((r) => r.json());
+  defaultMode = info.default_mode;
+  $("stats").innerHTML = [
+    `${info.papers} papers`, `${info.chunks.toLocaleString()} chunks`,
+    info.embedding_model && `embeddings: ${info.embedding_model}`,
+    info.reranker_model && `reranker: ${info.reranker_model}`,
+    `answers: ${info.generator}`,
+  ].filter(Boolean).map((s) => `<span class="pill">${esc(s)}</span>`).join("");
+  $("modes").innerHTML = info.modes.map((m) =>
+    `<label><input type="radio" name="mode" value="${m}" ${m === defaultMode ? "checked" : ""}><span>${MODE_LABELS[m] || m}</span></label>`).join("");
+  $("examples").innerHTML = EXAMPLES.map((e) => `<button type="button">${esc(e)}</button>`).join("");
+  $("examples").querySelectorAll("button").forEach((b) => b.onclick = () => { $("q").value = b.textContent; $("form").requestSubmit(); });
+}
+
+function highlight(text, query) {
+  const terms = [...new Set(query.toLowerCase().match(/[a-z0-9]{4,}/g) || [])];
+  let html = esc(text);
+  for (const t of terms) html = html.replace(new RegExp(`\\b(${t}\\w*)`, "gi"), "<mark>$1</mark>");
+  return html;
+}
+
+function renderTimings(timings) {
+  const total = Object.values(timings).reduce((a, b) => a + b, 0) || 1;
+  const bars = Object.entries(timings).map(([k, v]) => `<span title="${k}: ${v} ms" style="width:${(100 * v) / total}%;background:${STAGE_COLORS[k] || "var(--muted)"}"></span>`).join("");
+  const legend = Object.entries(timings).map(([k, v]) => `<span><i style="background:${STAGE_COLORS[k] || "var(--muted)"}"></i>${k} ${v < 10 ? v.toFixed(1) : v.toFixed(0)} ms</span>`).join("");
+  return `<div class="timings">${bars}</div><div class="legend">${legend}</div>`;
+}
+
+function renderHits(result, query) {
+  $("timing").innerHTML = renderTimings(result.timings_ms);
+  $("hits").innerHTML = result.hits.map((h, i) => {
+    const badges = Object.entries(h.ranks).map(([k, r]) => `<span class="badge ${k}">${k} #${r}</span>`).join("");
+    return `<article class="hit" id="src-${i + 1}">
+      <div class="hit-head"><span class="hit-num">[${i + 1}]</span>
+        <span class="hit-title"><a href="https://arxiv.org/abs/${h.doc_id}" target="_blank" rel="noopener">${esc(h.title)}</a></span>
+        <span class="hit-page">p. ${h.page}</span></div>
+      <div class="badges">${badges}</div>
+      <p class="hit-text">${highlight(h.text, query)}</p></article>`;
+  }).join("") || "<p>No results.</p>";
+  $("hits-wrap").hidden = false;
+}
+
+function renderAnswer(text) {
+  const n = document.querySelectorAll("#hits .hit").length;
+  $("answer").innerHTML = esc(text).replace(/\[(\d+)\]/g, (m, d) => (+d >= 1 && +d <= n ? `<a class="cite" data-n="${d}">[${d}]</a>` : m));
+  $("answer").querySelectorAll(".cite").forEach((a) => a.onclick = () => {
+    const el = $(`src-${a.dataset.n}`); if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 1200);
+  });
+}
+
+async function streamAnswer(body, query) {
+  const resp = await fetch("/api/ask/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!resp.ok) throw new Error((await resp.json()).detail || resp.statusText);
+  const reader = resp.body.getReader(); const dec = new TextDecoder();
+  let buf = "", answer = "";
+  $("answer-wrap").hidden = false; $("answer").textContent = "…"; $("answer-meta").textContent = "";
+  for (;;) {
+    const { value, done } = await reader.read(); if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const raw = buf.slice(0, idx); buf = buf.slice(idx + 2);
+      const ev = (raw.match(/^event: (.*)$/m) || [])[1];
+      const data = JSON.parse((raw.match(/^data: (.*)$/m) || [])[1] || "null");
+      if (ev === "sources") renderHits(data, query);
+      else if (ev === "token") { answer += data; renderAnswer(answer); }
+      else if (ev === "error") $("answer-meta").innerHTML = `<span class="error">${esc(data)}</span>`;
+      else if (ev === "done") $("answer-meta").textContent = `Generated by ${data.model}`;
+    }
+  }
+}
+
+async function compare(query, k) {
+  const res = await fetch("/api/compare", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, k }) }).then((r) => r.json());
+  const ref = new Set((res.hybrid_rerank || Object.values(res).at(-1)).hits.map((h) => h.chunk_id));
+  $("compare").innerHTML = Object.entries(res).map(([mode, r]) => `<div class="col"><h3>${MODE_LABELS[mode] || mode} <small style="font-weight:400">${r.total_ms.toFixed(0)} ms</small></h3><ol>${
+    r.hits.map((h) => `<li class="${ref.has(h.chunk_id) ? "shared" : ""}">${esc(h.title.split(":")[0])} <small>p.${h.page}</small></li>`).join("")}</ol></div>`).join("");
+  $("compare-wrap").hidden = false;
+}
+
+$("form").onsubmit = async (e) => {
+  e.preventDefault();
+  const query = $("q").value.trim(); if (!query) return;
+  const mode = document.querySelector("input[name=mode]:checked")?.value || defaultMode;
+  const k = Math.max(1, Math.min(20, parseInt($("k").value, 10) || 5));
+  $("go").disabled = true; $("compare-wrap").hidden = true;
+  try {
+    const jobs = [streamAnswer({ query, mode, k }, query)];
+    if ($("cmp").checked) jobs.push(compare(query, k));
+    await Promise.all(jobs);
+  } catch (err) {
+    $("answer-wrap").hidden = false; $("answer").innerHTML = `<span class="error">${esc(String(err.message || err))}</span>`;
+  } finally { $("go").disabled = false; }
+};
+
+init().catch((err) => { $("stats").innerHTML = `<span class="pill error">API unavailable: ${esc(String(err))}</span>`; });
+</script>
+</body>
+</html>

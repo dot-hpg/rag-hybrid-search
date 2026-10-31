@@ -1,0 +1,310 @@
+[
+  {
+    "group": "fusion",
+    "setting": "RRF k=10",
+    "mode": "hybrid",
+    "metrics": {
+      "hit@1": 0.4167,
+      "hit@3": 0.6667,
+      "hit@5": 0.75,
+      "mrr@10": 0.5639,
+      "ndcg@10": 0.5277,
+      "recall@10": 0.6828,
+      "paper_hit@5": 1.0
+    },
+    "mrr_ci95": [
+      0.4588,
+      0.6614
+    ],
+    "latency_ms": {
+      "p50": 51.4,
+      "p95": 65.7
+    }
+  },
+  {
+    "group": "fusion",
+    "setting": "RRF k=10",
+    "mode": "hybrid_rerank",
+    "metrics": {
+      "hit@1": 0.4667,
+      "hit@3": 0.65,
+      "hit@5": 0.8,
+      "mrr@10": 0.599,
+      "ndcg@10": 0.5673,
+      "recall@10": 0.7347,
+      "paper_hit@5": 0.9833
+    },
+    "mrr_ci95": [
+      0.4957,
+      0.7082
+    ],
+    "latency_ms": {
+      "p50": 2403.7,
+      "p95": 2782.1
+    }
+  },
+  {
+    "group": "fusion",
+    "setting": "RRF k=30",
+    "mode": "hybrid",
+    "metrics": {
+      "hit@1": 0.4167,
+      "hit@3": 0.6833,
+      "hit@5": 0.7667,
+      "mrr@10": 0.5618,
+      "ndcg@10": 0.5174,
+      "recall@10": 0.6647,
+      "paper_hit@5": 1.0
+    },
+    "mrr_ci95": [
+      0.4595,
+      0.6615
+    ],
+    "latency_ms": {
+      "p50": 51.0,
+      "p95": 55.9
+    }
+  },
+  {
+    "group": "fusion",
+    "setting": "RRF k=30",
+    "mode": "hybrid_rerank",
+    "metrics": {
+      "hit@1": 0.4667,
+      "hit@3": 0.65,
+      "hit@5": 0.8167,
+      "mrr@10": 0.5995,
+      "ndcg@10": 0.5676,
+      "recall@10": 0.7347,
+      "paper_hit@5": 0.9833
+    },
+    "mrr_ci95": [
+      0.4962,
+      0.7082
+    ],
+    "latency_ms": {
+      "p50": 2390.2,
+      "p95": 2774.7
+    }
+  },
+  {
+    "group": "fusion",
+    "setting": "RRF k=60",
+    "mode": "hybrid",
+    "metrics": {
+      "hit@1": 0.4167,
+      "hit@3": 0.6833,
+      "hit@5": 0.75,
+      "mrr@10": 0.5617,
+      "ndcg@10": 0.5148,
+      "recall@10": 0.6564,
+      "paper_hit@5": 0.9833
+    },
+    "mrr_ci95": [
+      0.4596,
+      0.661
+    ],
+    "latency_ms": {
+      "p50": 52.7,
+      "p95": 128.0
+    }
+  },
+  {
+    "group": "fusion",
+    "setting": "RRF k=60",
+    "mode": "hybrid_rerank",
+    "metrics": {
+      "hit@1": 0.4667,
+      "hit@3": 0.65,
+      "hit@5": 0.8167,
+      "mrr@10": 0.5995,
+      "ndcg@10": 0.5676,
+      "recall@10": 0.7347,
+      "paper_hit@5": 0.9833
+    },
+    "mrr_ci95": [
+      0.4962,
+      0.7082
+    ],
+    "latency_ms": {
+      "p50": 2418.7,
+      "p95": 2801.9
+    }
+  },
+  {
+    "group": "fusion",
+    "setting": "RRF k=100",
+    "mode": "hybrid",
+    "metrics": {
+      "hit@1": 0.4167,
+      "hit@3": 0.6833,
+      "hit@5": 0.75,
+      "mrr@10": 0.5615,
+      "ndcg@10": 0.5148,
+      "recall@10": 0.6564,
+      "paper_hit@5": 0.9833
+    },
+    "mrr_ci95": [
+      0.4592,
+      0.6608
+    ],
+    "latency_ms": {
+      "p50": 51.7,
+      "p95": 56.2
+    }
+  },
+  {
+    "group": "fusion",
+    "setting": "RRF k=100",
+    "mode": "hybrid_rerank",
+    "metrics": {
+      "hit@1": 0.4667,
+      "hit@3": 0.65,
+      "hit@5": 0.8167,
+      "mrr@10": 0.5995,
+      "ndcg@10": 0.5676,
+      "recall@10": 0.7347,
+      "paper_hit@5": 0.9833
+    },
+    "mrr_ci95": [
+      0.4962,
+      0.7082
+    ],
+    "latency_ms": {
+      "p50": 2406.1,
+      "p95": 2794.9
+    }
+  },
+  {
+    "group": "fusion",
+    "setting": "min-max score blending",
+    "mode": "hybrid",
+    "metrics": {
+      "hit@1": 0.4167,
+      "hit@3": 0.6667,
+      "hit@5": 0.7667,
+      "mrr@10": 0.5612,
+      "ndcg@10": 0.5377,
+      "recall@10": 0.7133,
+      "paper_hit@5": 0.9833
+    },
+    "mrr_ci95": [
+      0.4615,
+      0.6595
+    ],
+    "latency_ms": {
+      "p50": 52.4,
+      "p95": 131.1
+    }
+  },
+  {
+    "group": "fusion",
+    "setting": "min-max score blending",
+    "mode": "hybrid_rerank",
+    "metrics": {
+      "hit@1": 0.4667,
+      "hit@3": 0.65,
+      "hit@5": 0.8,
+      "mrr@10": 0.599,
+      "ndcg@10": 0.5713,
+      "recall@10": 0.7431,
+      "paper_hit@5": 0.9833
+    },
+    "mrr_ci95": [
+      0.4957,
+      0.7082
+    ],
+    "latency_ms": {
+      "p50": 2467.9,
+      "p95": 2790.3
+    }
+  },
+  {
+    "group": "rerank_depth",
+    "setting": "rerank top 10",
+    "mode": "hybrid_rerank",
+    "metrics": {
+      "hit@1": 0.4667,
+      "hit@3": 0.6667,
+      "hit@5": 0.7833,
+      "mrr@10": 0.5891,
+      "ndcg@10": 0.5267,
+      "recall@10": 0.6564,
+      "paper_hit@5": 0.9833
+    },
+    "mrr_ci95": [
+      0.4865,
+      0.6975
+    ],
+    "latency_ms": {
+      "p50": 720.6,
+      "p95": 899.2
+    }
+  },
+  {
+    "group": "rerank_depth",
+    "setting": "rerank top 20",
+    "mode": "hybrid_rerank",
+    "metrics": {
+      "hit@1": 0.4667,
+      "hit@3": 0.6333,
+      "hit@5": 0.7833,
+      "mrr@10": 0.5908,
+      "ndcg@10": 0.5483,
+      "recall@10": 0.7028,
+      "paper_hit@5": 1.0
+    },
+    "mrr_ci95": [
+      0.4852,
+      0.6983
+    ],
+    "latency_ms": {
+      "p50": 1519.4,
+      "p95": 1864.4
+    }
+  },
+  {
+    "group": "rerank_depth",
+    "setting": "rerank top 30",
+    "mode": "hybrid_rerank",
+    "metrics": {
+      "hit@1": 0.4667,
+      "hit@3": 0.65,
+      "hit@5": 0.8167,
+      "mrr@10": 0.5995,
+      "ndcg@10": 0.5676,
+      "recall@10": 0.7347,
+      "paper_hit@5": 0.9833
+    },
+    "mrr_ci95": [
+      0.4962,
+      0.7082
+    ],
+    "latency_ms": {
+      "p50": 2394.3,
+      "p95": 2785.5
+    }
+  },
+  {
+    "group": "rerank_depth",
+    "setting": "rerank top 50",
+    "mode": "hybrid_rerank",
+    "metrics": {
+      "hit@1": 0.4667,
+      "hit@3": 0.65,
+      "hit@5": 0.8,
+      "mrr@10": 0.5998,
+      "ndcg@10": 0.5755,
+      "recall@10": 0.755,
+      "paper_hit@5": 0.9833
+    },
+    "mrr_ci95": [
+      0.4972,
+      0.7071
+    ],
+    "latency_ms": {
+      "p50": 3987.3,
+      "p95": 4529.4
+    }
+  }
+]

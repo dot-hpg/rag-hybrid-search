@@ -1,0 +1,103 @@
+name: Ablations
+
+# Compares embedding models, rerankers, fusion methods and rerank depths, then commits
+# results/ablations/. Trigger: Actions tab, or a commit message containing [ablate].
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  models:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[ablate]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: bge-small__minilm-l6
+            embedding: BAAI/bge-small-en-v1.5
+            instruction: "Represent this sentence for searching relevant passages: "
+            reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
+          - name: bge-base__minilm-l6
+            embedding: BAAI/bge-base-en-v1.5
+            instruction: "Represent this sentence for searching relevant passages: "
+            reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
+          - name: minilm-l6-embed__minilm-l6
+            embedding: sentence-transformers/all-MiniLM-L6-v2
+            instruction: ""
+            reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
+          - name: bge-small__bge-reranker-base
+            embedding: BAAI/bge-small-en-v1.5
+            instruction: "Represent this sentence for searching relevant passages: "
+            reranker: BAAI/bge-reranker-base
+    env:
+      RAG_EMBEDDING_MODEL: ${{ matrix.embedding }}
+      RAG_QUERY_INSTRUCTION: ${{ matrix.instruction }}
+      RAG_RERANKER_MODEL: ${{ matrix.reranker }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e ".[ml]"
+      - run: rag index
+      - run: rag eval -m dense -m hybrid -m hybrid_rerank --out-dir "results/ablations/${{ matrix.name }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ablation-${{ matrix.name }}
+          path: results/ablations/${{ matrix.name }}
+
+  sweep:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[ablate]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e ".[ml]"
+      - run: rag index
+      - run: python scripts/sweep.py --out results/ablations/sweep.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ablation-sweep
+          path: results/ablations/sweep.json
+
+  collect:
+    needs: [models, sweep]
+    if: always() && (needs.models.result == 'success' || needs.sweep.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ablation-*
+          path: /tmp/ablations
+      - name: Assemble and summarise
+        run: |
+          mkdir -p results/ablations
+          for d in /tmp/ablations/ablation-*; do
+            name="${d##*/ablation-}"
+            if [ "$name" = "sweep" ]; then cp "$d/sweep.json" results/ablations/; else mkdir -p "results/ablations/$name" && cp "$d"/* "results/ablations/$name/"; fi
+          done
+          python scripts/summarize_ablations.py | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/ablations
+          git diff --cached --quiet && exit 0
+          git commit -m "Update ablation results"
+          for i in 1 2 3; do git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && break; sleep 5; done
